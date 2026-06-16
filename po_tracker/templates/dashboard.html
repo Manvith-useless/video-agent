@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — PO Tracker{% endblock %}
+
+{% block content %}
+<h1 class="page-title">Dashboard</h1>
+
+<div class="stat-grid">
+  <a href="{{ url_for('po_list') }}?filter=open" class="stat-card stat-blue">
+    <div class="stat-number">{{ counts.open }}</div>
+    <div class="stat-label">Open POs</div>
+  </a>
+  <a href="{{ url_for('report_overdue') }}" class="stat-card stat-red">
+    <div class="stat-number">{{ counts.overdue }}</div>
+    <div class="stat-label">Overdue POs</div>
+  </a>
+  <a href="{{ url_for('po_list') }}?filter=week" class="stat-card stat-orange">
+    <div class="stat-number">{{ counts.due_this_week }}</div>
+    <div class="stat-label">Due This Week</div>
+  </a>
+  <a href="{{ url_for('report_completed') }}" class="stat-card stat-green">
+    <div class="stat-number">{{ counts.completed }}</div>
+    <div class="stat-label">Completed POs</div>
+  </a>
+</div>
+
+<div class="panel">
+  <div class="panel-header">Quick Actions</div>
+  <div class="quick-actions">
+    <a class="btn btn-primary" href="{{ url_for('po_upload_page') }}">&#8679; Upload PO</a>
+    <a class="btn btn-secondary" href="{{ url_for('invoice_upload_page') }}">&#8679; Upload Invoice</a>
+    <a class="btn btn-outline" href="{{ url_for('report_pending') }}">Pending Dispatch Report</a>
+    <a class="btn btn-outline" href="{{ url_for('po_list') }}">View All POs</a>
+  </div>
+</div>
+
+{% if counts.recent_completed %}
+<div class="panel">
+  <div class="panel-header">Recently Completed POs</div>
+  <table class="data-table">
+    <thead>
+      <tr><th>PO Number</th><th>Due Date</th><th>Completed At</th></tr>
+    </thead>
+    <tbody>
+      {% for po in counts.recent_completed %}
+      <tr>
+        <td>{{ po.PONumber }}</td>
+        <td>{{ po.DueDate or '—' }}</td>
+        <td>{{ po.CreatedAt[:10] }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}Edit {{ po.PONumber }} — PO Tracker{% endblock %}
+
+{% block content %}
+<div class="page-header-row">
+  <h1 class="page-title">Edit PO — {{ po.PONumber }}</h1>
+  <a class="btn btn-outline" href="{{ url_for('po_detail', po_id=po.POID) }}">&#8592; Back</a>
+</div>
+
+<div class="panel">
+  <div class="alert alert-info">Note: Changing ordered quantities will automatically recalculate dispatch status.</div>
+
+  <div class="form-grid">
+    <div class="form-group">
+      <label>PO Number (read-only)</label>
+      <input type="text" class="form-control" value="{{ po.PONumber }}" disabled />
+    </div>
+    <div class="form-group">
+      <label>PO Date</label>
+      <input type="date" id="po-date" class="form-control" value="{{ po.PODate or '' }}" />
+    </div>
+    <div class="form-group">
+      <label>Due Date</label>
+      <input type="date" id="due-date" class="form-control" value="{{ po.DueDate or '' }}" />
+    </div>
+  </div>
+
+  <div class="panel-subheader">
+    Products
+    <button class="btn btn-sm btn-outline" onclick="addItemRow()">+ Add Row</button>
+  </div>
+  <table class="data-table" id="items-table">
+    <thead>
+      <tr>
+        <th>Product Code</th>
+        <th>Product Name</th>
+        <th>Ordered Qty</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="items-body">
+      {% for item in items %}
+      <tr>
+        <td><input type="text" class="form-control fc-code" value="{{ item.ProductCode }}" /></td>
+        <td><input type="text" class="form-control fc-name" value="{{ item.ProductName or '' }}" /></td>
+        <td><input type="number" class="form-control fc-qty" value="{{ item.OrderedQty }}" min="0" step="0.01" /></td>
+        <td><button class="btn btn-sm btn-danger" onclick="this.closest('tr').remove()">&#10005;</button></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="form-actions">
+    <button class="btn btn-primary" onclick="saveEdits()">&#10003; Save Changes</button>
+  </div>
+  <div id="save-error" class="alert alert-error" style="display:none"></div>
+  <div id="save-success" class="alert alert-success" style="display:none"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const PO_ID = {{ po.POID }};
+
+function addItemRow() {
+  const tbody = document.getElementById("items-body");
+  const tr = document.createElement("tr");
+  tr.innerHTML = `
+    <td><input type="text" class="form-control fc-code" placeholder="PROD-001" /></td>
+    <td><input type="text" class="form-control fc-name" placeholder="Product description" /></td>
+    <td><input type="number" class="form-control fc-qty" min="0" step="0.01" placeholder="0" /></td>
+    <td><button class="btn btn-sm btn-danger" onclick="this.closest('tr').remove()">&#10005;</button></td>
+  `;
+  tbody.appendChild(tr);
+}
+
+function saveEdits() {
+  const rows = document.querySelectorAll("#items-body tr");
+  const items = Array.from(rows).map(tr => ({
+    product_code: tr.querySelector(".fc-code").value.trim(),
+    product_name: tr.querySelector(".fc-name").value.trim(),
+    ordered_qty:  parseFloat(tr.querySelector(".fc-qty").value) || 0,
+  }));
+
+  fetch(`/po/${PO_ID}/update`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      po_date:  document.getElementById("po-date").value,
+      due_date: document.getElementById("due-date").value,
+      items,
+    }),
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.error) { showEl("save-error", data.error); return; }
+    showEl("save-success", "Changes saved!");
+    setTimeout(() => window.location.href = `/po/${PO_ID}`, 1000);
+  })
+  .catch(() => showEl("save-error", "Save failed."));
+}
+
+function showEl(id, msg) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.style.display = "block";
+}
+</script>
+{% endblock %}

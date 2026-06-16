@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Invoices — PO Tracker{% endblock %}
+
+{% block content %}
+<div class="page-header-row">
+  <h1 class="page-title">Invoices</h1>
+  <a class="btn btn-primary" href="{{ url_for('invoice_upload_page') }}">&#8679; New Invoice</a>
+</div>
+
+<table class="data-table">
+  <thead>
+    <tr>
+      <th>Invoice Number</th>
+      <th>Invoice Date</th>
+      <th>Against PO</th>
+      <th>Created At</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for inv in invoices %}
+    <tr>
+      <td>{{ inv.InvoiceNumber }}</td>
+      <td>{{ inv.InvoiceDate or '—' }}</td>
+      <td>
+        {% if inv.PONumber %}
+          {% set po_num = inv.PONumber %}
+          <a href="#" onclick="lookupPO('{{ po_num }}'); return false;">{{ po_num }}</a>
+        {% else %}—{% endif %}
+      </td>
+      <td>{{ inv.CreatedAt[:10] }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="4" class="empty-state">No invoices found.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function lookupPO(poNumber) {
+  fetch(`/api/po_by_number/${encodeURIComponent(poNumber)}`)
+    .then(r => r.json())
+    .then(data => {
+      if (data.POID) window.location.href = `/po/${data.POID}`;
+    });
+}
+</script>
+{% endblock %}

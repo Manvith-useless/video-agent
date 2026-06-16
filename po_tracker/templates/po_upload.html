@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+{% block title %}Upload PO — PO Tracker{% endblock %}
+
+{% block content %}
+<h1 class="page-title">Upload Purchase Order</h1>
+
+<!-- Step 1: Upload PDF -->
+<div class="panel" id="step-upload">
+  <div class="panel-header">Step 1 — Upload PO PDF</div>
+  <div class="upload-zone" id="upload-zone">
+    <div class="upload-icon">&#128196;</div>
+    <p>Drag &amp; drop a PDF here, or</p>
+    <label class="btn btn-primary" for="pdf-input">Choose PDF File</label>
+    <input type="file" id="pdf-input" accept=".pdf" style="display:none" />
+    <div id="upload-filename" class="upload-filename"></div>
+  </div>
+  <div id="extract-progress" class="progress-bar" style="display:none">
+    <div class="progress-fill"></div>
+    <span>Extracting data from PDF…</span>
+  </div>
+  <div id="extract-error" class="alert alert-error" style="display:none"></div>
+</div>
+
+<!-- Step 2: Review & Edit -->
+<div class="panel" id="step-review" style="display:none">
+  <div class="panel-header">Step 2 — Review &amp; Confirm Extracted Data</div>
+  <div class="alert alert-info">Please verify all fields. Edit any incorrect values before saving.</div>
+
+  <div class="form-grid">
+    <div class="form-group">
+      <label>PO Number <span class="required">*</span></label>
+      <input type="text" id="po-number" class="form-control" placeholder="e.g. PO-2024-001" />
+    </div>
+    <div class="form-group">
+      <label>PO Date</label>
+      <input type="date" id="po-date" class="form-control" />
+    </div>
+    <div class="form-group">
+      <label>Due Date</label>
+      <input type="date" id="due-date" class="form-control" />
+    </div>
+  </div>
+
+  <div class="panel-subheader">
+    Products
+    <button class="btn btn-sm btn-outline" onclick="addItemRow()">+ Add Row</button>
+  </div>
+  <table class="data-table" id="items-table">
+    <thead>
+      <tr>
+        <th>Product Code <span class="required">*</span></th>
+        <th>Product Name</th>
+        <th>Ordered Qty <span class="required">*</span></th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="items-body"></tbody>
+  </table>
+
+  <div class="form-actions">
+    <button class="btn btn-outline" onclick="resetForm()">&#8592; Start Over</button>
+    <button class="btn btn-primary" onclick="savePO()">&#10003; Save PO</button>
+  </div>
+  <div id="save-error" class="alert alert-error" style="display:none"></div>
+  <div id="save-success" class="alert alert-success" style="display:none"></div>
+</div>
+
+<!-- Raw text accordion -->
+<div class="panel" id="raw-text-panel" style="display:none">
+  <details>
+    <summary class="panel-header" style="cursor:pointer">Extracted Raw Text (for reference)</summary>
+    <pre id="raw-text" class="raw-text"></pre>
+  </details>
+</div>
+
+<input type="hidden" id="pdf-path" />
+{% endblock %}
+
+{% block scripts %}
+<script>
+let pdfPath = "";
+
+const uploadZone = document.getElementById("upload-zone");
+const pdfInput  = document.getElementById("pdf-input");
+
+uploadZone.addEventListener("dragover", e => { e.preventDefault(); uploadZone.classList.add("drag-over"); });
+uploadZone.addEventListener("dragleave", () => uploadZone.classList.remove("drag-over"));
+uploadZone.addEventListener("drop", e => {
+  e.preventDefault(); uploadZone.classList.remove("drag-over");
+  const file = e.dataTransfer.files[0];
+  if (file && file.name.endsWith(".pdf")) handleFile(file);
+});
+pdfInput.addEventListener("change", () => { if (pdfInput.files[0]) handleFile(pdfInput.files[0]); });
+
+function handleFile(file) {
+  document.getElementById("upload-filename").textContent = file.name;
+  document.getElementById("extract-error").style.display = "none";
+  document.getElementById("extract-progress").style.display = "flex";
+
+  const fd = new FormData();
+  fd.append("pdf", file);
+
+  fetch("/po/extract", { method: "POST", body: fd })
+    .then(r => r.json())
+    .then(data => {
+      document.getElementById("extract-progress").style.display = "none";
+      if (data.error) { showError("extract-error", data.error); return; }
+      populateForm(data);
+    })
+    .catch(() => {
+      document.getElementById("extract-progress").style.display = "none";
+      showError("extract-error", "Failed to extract PDF. Please try again.");
+    });
+}
+
+function populateForm(data) {
+  pdfPath = data.pdf_path || "";
+  document.getElementById("po-number").value = data.po_number || "";
+  document.getElementById("po-date").value   = data.po_date   || "";
+  document.getElementById("due-date").value  = data.due_date  || "";
+
+  const tbody = document.getElementById("items-body");
+  tbody.innerHTML = "";
+  (data.items || []).forEach(item => addItemRow(item));
+  if (!data.items || data.items.length === 0) addItemRow();
+
+  if (data.raw_text) {
+    document.getElementById("raw-text").textContent = data.raw_text;
+    document.getElementById("raw-text-panel").style.display = "block";
+  }
+
+  document.getElementById("step-review").style.display = "block";
+  document.getElementById("step-review").scrollIntoView({ behavior: "smooth" });
+}
+
+function addItemRow(item = {}) {
+  const tbody = document.getElementById("items-body");
+  const tr = document.createElement("tr");
+  tr.innerHTML = `
+    <td><input type="text" class="form-control fc-code" value="${escHtml(item.product_code || '')}" placeholder="PROD-001" /></td>
+    <td><input type="text" class="form-control fc-name" value="${escHtml(item.product_name || '')}" placeholder="Product description" /></td>
+    <td><input type="number" class="form-control fc-qty" value="${item.ordered_qty || ''}" min="0" step="0.01" placeholder="0" /></td>
+    <td><button class="btn btn-sm btn-danger" onclick="this.closest('tr').remove()">&#10005;</button></td>
+  `;
+  tbody.appendChild(tr);
+}
+
+function getItems() {
+  const rows = document.querySelectorAll("#items-body tr");
+  return Array.from(rows).map(tr => ({
+    product_code: tr.querySelector(".fc-code").value.trim(),
+    product_name: tr.querySelector(".fc-name").value.trim(),
+    ordered_qty:  parseFloat(tr.querySelector(".fc-qty").value) || 0,
+  }));
+}
+
+function savePO() {
+  document.getElementById("save-error").style.display = "none";
+  document.getElementById("save-success").style.display = "none";
+
+  const payload = {
+    po_number: document.getElementById("po-number").value.trim(),
+    po_date:   document.getElementById("po-date").value,
+    due_date:  document.getElementById("due-date").value,
+    pdf_path:  pdfPath,
+    items:     getItems(),
+  };
+
+  fetch("/po/save", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.error) { showError("save-error", data.error); return; }
+    const el = document.getElementById("save-success");
+    el.textContent = "PO saved successfully!";
+    el.style.display = "block";
+    setTimeout(() => window.location.href = `/po/${data.po_id}`, 1200);
+  })
+  .catch(() => showError("save-error", "Save failed. Please try again."));
+}
+
+function resetForm() {
+  document.getElementById("step-review").style.display = "none";
+  document.getElementById("raw-text-panel").style.display = "none";
+  document.getElementById("upload-filename").textContent = "";
+  pdfInput.value = "";
+  pdfPath = "";
+}
+
+function showError(id, msg) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.style.display = "block";
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+</script>
+{% endblock %}

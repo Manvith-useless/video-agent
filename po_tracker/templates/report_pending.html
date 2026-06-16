@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Pending Dispatch Report — PO Tracker{% endblock %}
+
+{% block content %}
+<div class="page-header-row">
+  <h1 class="page-title">Pending Dispatch Report</h1>
+  <button class="btn btn-outline" onclick="window.print()">&#128424; Print</button>
+</div>
+
+{% if rows %}
+<p class="text-muted">{{ rows | length }} pending line(s) across open POs.</p>
+<table class="data-table" id="report-table">
+  <thead>
+    <tr>
+      <th>PO Number</th>
+      <th>Due Date</th>
+      <th>Product Code</th>
+      <th>Product Name</th>
+      <th>Ordered Qty</th>
+      <th>Dispatched Qty</th>
+      <th>Pending Qty</th>
+      <th>Status</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+    <tr>
+      <td><a href="/api/po_by_number/{{ row.PONumber }}" onclick="goPO('{{ row.PONumber }}'); return false;">{{ row.PONumber }}</a></td>
+      <td class="{% if row.Status == 'OVERDUE' %}text-red{% endif %}">{{ row.DueDate or '—' }}</td>
+      <td><code>{{ row.ProductCode }}</code></td>
+      <td>{{ row.ProductName or '—' }}</td>
+      <td class="num">{{ row.OrderedQty | int }}</td>
+      <td class="num">{{ row.DispatchedQty | int }}</td>
+      <td class="num text-orange">{{ row.PendingQty | int }}</td>
+      <td><span class="badge badge-{{ row.Status | lower | replace(' ', '-') }}">{{ row.Status }}</span></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="empty-state-large">
+  <div class="empty-icon">&#10003;</div>
+  <p>No pending dispatches. All open POs are fully dispatched.</p>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+function goPO(num) {
+  fetch(`/api/po_by_number/${encodeURIComponent(num)}`)
+    .then(r => r.json())
+    .then(d => { if (d.POID) window.location.href = `/po/${d.POID}`; });
+}
+</script>
+{% endblock %}
