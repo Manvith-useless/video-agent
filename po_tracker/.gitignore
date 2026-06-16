@@ -1,7 +1,4 @@
 __pycache__/
 *.pyc
-data/po_tracker.db
-data/po_pdfs/
-data/invoice_pdfs/
 data/reports/
 data/backups/
