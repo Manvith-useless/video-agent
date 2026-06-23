@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Overdue POs — PO Tracker{% endblock %}
+
+{% block content %}
+<div class="page-header-row">
+  <h1 class="page-title">Overdue POs</h1>
+  <button class="btn btn-outline" onclick="window.print()">&#128424; Print</button>
+</div>
+
+{% if pos %}
+<table class="data-table">
+  <thead>
+    <tr>
+      <th>PO Number</th>
+      <th>PO Date</th>
+      <th>Due Date</th>
+      <th>Ordered Qty</th>
+      <th>Dispatched Qty</th>
+      <th>Pending Qty</th>
+      <th>Status</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for po in pos %}
+    <tr>
+      <td>{{ po.PONumber }}</td>
+      <td>{{ po.PODate or '—' }}</td>
+      <td class="text-red">{{ po.DueDate or '—' }}</td>
+      <td class="num">{{ po.TotalOrdered | int }}</td>
+      <td class="num">{{ po.TotalDispatched | int }}</td>
+      <td class="num text-red">{{ po.TotalPending | int }}</td>
+      <td><span class="badge badge-overdue">OVERDUE</span></td>
+      <td><a class="btn btn-sm btn-outline" href="{{ url_for('po_detail', po_id=po.POID) }}">View</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="empty-state-large">
+  <div class="empty-icon">&#10003;</div>
+  <p>No overdue POs. Great job!</p>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}{{ po.PONumber }} — PO Tracker{% endblock %}
+
+{% block content %}
+<div class="page-header-row">
+  <h1 class="page-title">{{ po.PONumber }}</h1>
+  <div>
+    <a class="btn btn-outline" href="{{ url_for('po_edit_page', po_id=po.POID) }}">Edit</a>
+    <a class="btn btn-secondary" href="{{ url_for('invoice_upload_page') }}">&#8679; Upload Invoice</a>
+    <a class="btn btn-outline" href="{{ url_for('po_list') }}">&#8592; All POs</a>
+  </div>
+</div>
+
+<!-- PO Summary -->
+<div class="panel">
+  <div class="panel-header">PO Information</div>
+  <div class="info-grid">
+    <div class="info-item"><span class="info-label">PO Number</span><span class="info-value">{{ po.PONumber }}</span></div>
+    <div class="info-item"><span class="info-label">PO Date</span><span class="info-value">{{ po.PODate or '—' }}</span></div>
+    <div class="info-item"><span class="info-label">Due Date</span><span class="info-value {% if po.Status == 'OVERDUE' %}text-red{% endif %}">{{ po.DueDate or '—' }}</span></div>
+    <div class="info-item"><span class="info-label">Status</span><span class="badge badge-{{ po.Status | lower | replace(' ', '-') }}">{{ po.Status }}</span></div>
+    <div class="info-item"><span class="info-label">Total Ordered</span><span class="info-value">{{ po.TotalOrdered | int }}</span></div>
+    <div class="info-item"><span class="info-label">Total Dispatched</span><span class="info-value">{{ po.TotalDispatched | int }}</span></div>
+    <div class="info-item"><span class="info-label">Total Pending</span><span class="info-value {% if po.TotalPending > 0 %}text-orange{% endif %}">{{ po.TotalPending | int }}</span></div>
+  </div>
+
+  {% if po.TotalOrdered > 0 %}
+  <div class="progress-track">
+    <div class="progress-track-fill" style="width: {{ [((po.TotalDispatched / po.TotalOrdered) * 100), 100] | min }}%"></div>
+  </div>
+  <div class="progress-label">{{ ((po.TotalDispatched / po.TotalOrdered) * 100) | round(1) }}% dispatched</div>
+  {% endif %}
+</div>
+
+<!-- Product Items -->
+<div class="panel">
+  <div class="panel-header">Products</div>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Product Code</th>
+        <th>Product Name</th>
+        <th>Ordered Qty</th>
+        <th>Dispatched Qty</th>
+        <th>Pending Qty</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in po.Items %}
+      <tr>
+        <td><code>{{ item.ProductCode }}</code></td>
+        <td>{{ item.ProductName or '—' }}</td>
+        <td class="num">{{ item.OrderedQty | int }}</td>
+        <td class="num">{{ item.DispatchedQty | int }}</td>
+        <td class="num {% if item.PendingQty > 0 %}text-orange{% endif %}">{{ item.PendingQty | int }}</td>
+        <td><span class="badge badge-{{ item.Status | lower | replace(' ', '-') }}">{{ item.Status }}</span></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Dispatch History -->
+<div class="panel">
+  <div class="panel-header">Dispatch History</div>
+  {% if history %}
+    {% for inv in history %}
+    <div class="history-block">
+      <div class="history-header">
+        <strong>{{ inv.InvoiceNumber }}</strong>
+        <span class="text-muted">{{ inv.InvoiceDate or '—' }}</span>
+      </div>
+      <table class="data-table data-table-sm">
+        <thead>
+          <tr><th>Product Code</th><th>Product Name</th><th>Dispatched Qty</th></tr>
+        </thead>
+        <tbody>
+          {% for item in inv.Items %}
+          <tr>
+            <td><code>{{ item.ProductCode }}</code></td>
+            <td>{{ item.ProductName or '—' }}</td>
+            <td class="num">{{ item.DispatchedQty | int }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endfor %}
+  {% else %}
+    <div class="empty-state">No invoices linked to this PO yet.</div>
+  {% endif %}
+</div>
+{% endblock %}

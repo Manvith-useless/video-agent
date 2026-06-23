@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}All POs — PO Tracker{% endblock %}
+
+{% block content %}
+<div class="page-header-row">
+  <h1 class="page-title">All Purchase Orders</h1>
+  <a class="btn btn-primary" href="{{ url_for('po_upload_page') }}">&#8679; New PO</a>
+</div>
+
+<div class="filter-bar">
+  <input type="text" id="search-input" class="form-control" placeholder="Search PO number or product..." style="max-width:320px" />
+  <select id="status-filter" class="form-control" style="max-width:180px">
+    <option value="">All Statuses</option>
+    <option value="NOT STARTED">Not Started</option>
+    <option value="IN PROGRESS">In Progress</option>
+    <option value="COMPLETED">Completed</option>
+    <option value="OVERDUE">Overdue</option>
+  </select>
+</div>
+
+<table class="data-table" id="po-table">
+  <thead>
+    <tr>
+      <th>PO Number</th>
+      <th>PO Date</th>
+      <th>Due Date</th>
+      <th>Ordered Qty</th>
+      <th>Dispatched Qty</th>
+      <th>Pending Qty</th>
+      <th>Status</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for po in pos %}
+    <tr data-status="{{ po.Status }}">
+      <td><a href="{{ url_for('po_detail', po_id=po.POID) }}">{{ po.PONumber }}</a></td>
+      <td>{{ po.PODate or '—' }}</td>
+      <td class="{% if po.Status == 'OVERDUE' %}text-red{% endif %}">{{ po.DueDate or '—' }}</td>
+      <td class="num">{{ po.TotalOrdered | int }}</td>
+      <td class="num">{{ po.TotalDispatched | int }}</td>
+      <td class="num {% if po.TotalPending > 0 %}text-orange{% endif %}">{{ po.TotalPending | int }}</td>
+      <td><span class="badge badge-{{ po.Status | lower | replace(' ', '-') }}">{{ po.Status }}</span></td>
+      <td>
+        <a class="btn btn-sm btn-outline" href="{{ url_for('po_detail', po_id=po.POID) }}">View</a>
+        <a class="btn btn-sm btn-outline" href="{{ url_for('po_edit_page', po_id=po.POID) }}">Edit</a>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="8" class="empty-state">No purchase orders found.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const search = document.getElementById("search-input");
+const statusFilter = document.getElementById("status-filter");
+
+function filterTable() {
+  const q = search.value.toLowerCase();
+  const s = statusFilter.value;
+  document.querySelectorAll("#po-table tbody tr").forEach(row => {
+    const text = row.textContent.toLowerCase();
+    const rowStatus = row.dataset.status || "";
+    const matchQ = !q || text.includes(q);
+    const matchS = !s || rowStatus === s;
+    row.style.display = matchQ && matchS ? "" : "none";
+  });
+}
+
+// Apply filter from URL param
+const params = new URLSearchParams(window.location.search);
+if (params.get("filter") === "open") statusFilter.value = "IN PROGRESS";
+if (params.get("filter") === "week") { /* handled client side */ }
+
+search.addEventListener("input", filterTable);
+statusFilter.addEventListener("change", filterTable);
+filterTable();
+</script>
+{% endblock %}

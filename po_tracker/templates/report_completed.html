@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Completed POs — PO Tracker{% endblock %}
+
+{% block content %}
+<div class="page-header-row">
+  <h1 class="page-title">Completed POs</h1>
+  <button class="btn btn-outline" onclick="window.print()">&#128424; Print</button>
+</div>
+
+{% if pos %}
+<table class="data-table">
+  <thead>
+    <tr>
+      <th>PO Number</th>
+      <th>PO Date</th>
+      <th>Due Date</th>
+      <th>Total Ordered</th>
+      <th>Total Dispatched</th>
+      <th>Status</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for po in pos %}
+    <tr>
+      <td>{{ po.PONumber }}</td>
+      <td>{{ po.PODate or '—' }}</td>
+      <td>{{ po.DueDate or '—' }}</td>
+      <td class="num">{{ po.TotalOrdered | int }}</td>
+      <td class="num">{{ po.TotalDispatched | int }}</td>
+      <td><span class="badge badge-completed">COMPLETED</span></td>
+      <td><a class="btn btn-sm btn-outline" href="{{ url_for('po_detail', po_id=po.POID) }}">View</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="empty-state-large">
+  <div class="empty-icon">&#128230;</div>
+  <p>No completed POs yet.</p>
+</div>
+{% endif %}
+{% endblock %}
