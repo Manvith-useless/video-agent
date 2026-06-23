@@ -203,6 +203,34 @@ def main():
     _autosize(ws4)
     ws4.freeze_panes = "A2"
 
+    # ---------- Sheet 5: Balance To Distribute (clean, qty only) ----------
+    ws5 = wb.create_sheet("Balance To Distribute")
+    headers5 = ["PO Number", "Product Name", "Balance Qty"]
+    ws5.append(headers5)
+    _style_header(ws5, 1, len(headers5))
+
+    for s in po_summaries:
+        po = s["po"]
+        if s["status"] == "COMPLETED":
+            continue
+        items = cur.execute("SELECT * FROM PURCHASE_ORDER_ITEMS WHERE POID=?", (po["POID"],)).fetchall()
+        for item in items:
+            dispatched = cur.execute(
+                """SELECT COALESCE(SUM(ii.DispatchedQty),0) AS total
+                   FROM INVOICE_ITEMS ii JOIN INVOICES inv ON ii.InvoiceID = inv.InvoiceID
+                   WHERE ii.ProductCode=? AND inv.PONumber=?""",
+                (item["ProductCode"], po["PONumber"]),
+            ).fetchone()["total"]
+            pending = max(0, item["OrderedQty"] - dispatched)
+            if pending > 0:
+                ws5.append([po["PONumber"], item["ProductName"], pending])
+                r = ws5.max_row
+                for c in range(1, len(headers5) + 1):
+                    ws5.cell(row=r, column=c).border = BORDER
+
+    _autosize(ws5)
+    ws5.freeze_panes = "A2"
+
     wb.save(OUT_PATH)
     conn.close()
     print(f"Report saved to: {OUT_PATH}")
